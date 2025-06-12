@@ -32,28 +32,46 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
   const [score, setScore] = useState(0);
   const [usedClues, setUsedClues] = useState([]);
   const [results, setResults] = useState([]);
+  const [loadError, setLoadError] = useState(false); // NEW
 
   // On mount, prepare 10 random Tamil (Kollywood) movies
   useEffect(() => {
     let isMounted = true;
     async function prepareQuiz() {
       setLoading(true);
+      setLoadError(false);
       try {
-        // Find popular tamil movies with poster
-        const result = await searchMovies("", {
-          with_original_language: "ta",
-          sort_by: "popularity.desc",
-          include_adult: false,
-          region: "IN",
-          page: Math.floor(Math.random() * 25) + 1
-        });
+        // Try up to 4 random pages for more coverage in search (sometimes TMDB returns sparse pages)
+        let tamilMovies = [];
+        for (let attempt = 0; attempt < 4 && tamilMovies.length < 12; attempt++) {
+          const result = await searchMovies("", {
+            with_original_language: "ta",
+            sort_by: "popularity.desc",
+            include_adult: false,
+            region: "IN",
+            page: Math.floor(Math.random() * 25) + 1
+          });
 
-        if (!result || !Array.isArray(result.results)) {
-          throw new Error("TMDB returned no results for Tamil movies.");
+          if (result && Array.isArray(result.results)) {
+            tamilMovies = [
+              ...tamilMovies,
+              ...result.results.filter(isKollywoodMovie).filter(m => !!m.poster_path)
+            ];
+            // Remove duplicates by movie id
+            const idSet = new Set();
+            tamilMovies = tamilMovies.filter(m => {
+              if (idSet.has(m.id)) return false;
+              idSet.add(m.id);
+              return true;
+            });
+          }
         }
-        const tamilMovies = (result.results || []).filter(isKollywoodMovie).filter(m => !!m.poster_path);
 
-        // get unique random samples
+        if (tamilMovies.length === 0) {
+          throw new Error("No suitable Tamil movies found.");
+        }
+
+        // get unique random samples (up to 10)
         const shuffled = [...tamilMovies].sort(() => 0.5 - Math.random());
         const selected = [];
         const usedTitles = new Set();
@@ -70,7 +88,7 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
           throw new Error("No Tamil movies with posters found, try again later.");
         }
 
-        // For each, retrieve details (year/genre etc)
+        // For each, retrieve details (year/genre etc), but tolerate per-movie fetch errors
         const questionsPromises = selected.map(async m => {
           try {
             const details = await getMovieDetails(m.id);
@@ -80,8 +98,8 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
             return {
               id: m.id,
               title: m.title,
-              year: details.release_date?.slice(0, 4) || "Unknown",
-              genres: details.genres?.map(g => g.name) || [],
+              year: details?.release_date?.slice(0, 4) || m.release_date?.slice(0, 4) || "Unknown",
+              genres: details?.genres?.map(g => g.name) || [],
               posterPath,
             };
           } catch (qErr) {
@@ -98,15 +116,20 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
         });
         const questionsList = await Promise.all(questionsPromises);
 
+        // Filter out those with no posterPath or title (shouldn't happen, but just in case)
+        const filteredQuestions = questionsList.filter(q => q.posterPath && q.title);
+
         if (isMounted) {
-          setQuestions(questionsList);
-          setUsedClues(Array(questionsList.length).fill({ year: false, genre: false }));
+          if (!filteredQuestions.length) throw new Error("No usable Kollywood quiz questions generated.");
+          setQuestions(filteredQuestions);
+          setUsedClues(Array(filteredQuestions.length).fill({ year: false, genre: false }));
           setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
           setQuestions([]);
           setLoading(false);
+          setLoadError(true);
         }
       }
     }
@@ -131,8 +154,8 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
   };
 
   const goToNext = () => {
-    if (activeIdx >= 9) {
-      onComplete({ score: score + 0, total: 10, details: results });
+    if (activeIdx >= questions.length - 1) {
+      onComplete({ score: score + 0, total: questions.length, details: results });
     } else {
       setActiveIdx(i => i + 1);
     }
@@ -163,11 +186,11 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
       </div>
     );
   }
-  if (!questions.length) {
+  if (loadError || !questions.length) {
     return (
       <div className="container" style={{ marginTop: 140 }}>
         <div style={{ color: "#db076c", fontWeight: 600, marginBottom: "1.3rem" }}>
-          Failed to load Kollywood movie posters. Please try again later.
+          Failed to load Kollywood movie posters. Please check your internet or try again later.
         </div>
         <button className="btn" onClick={onExit}>Back to Dashboard</button>
       </div>
@@ -183,7 +206,7 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
         Blurred Poster Quiz
       </div>
       <div style={{ marginTop: 3, fontWeight: 400, color: "#2a0b28" }}>
-        Question {activeIdx + 1} / 10
+        Question {activeIdx + 1} / {questions.length}
       </div>
       <div style={{ textAlign: "center", margin: "18px auto 6px" }}>
         <img

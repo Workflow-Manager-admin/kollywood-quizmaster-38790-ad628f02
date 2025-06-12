@@ -63,3 +63,23 @@ cached modules 1.31 MiB [cached] 52 modules
 runtime modules 27.5 KiB 14 modules
 ./src/components/quizzes/BlurredPosterQuiz.js 11 KiB [built] [code generated]
 webpack 5.99.9 compiled successfully in 103 ms
+assets by status 629 bytes [cached] 1 asset
+assets by path *.js 1.49 MiB
+  asset bundle.js 1.47 MiB [emitted] (name: main)
+  asset main.efce9f1f7f859d4311a9.hot-update.js 16 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.efce9f1f7f859d4311a9.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.49 MiB = bundle.js 1.47 MiB main.efce9f1f7f859d4311a9.hot-update.js 16 KiB
+cached modules 1.31 MiB [cached] 52 modules
+runtime modules 27.5 KiB 14 modules
+./src/components/quizzes/BlurredPosterQuiz.js 12 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 106 ms
+assets by status 629 bytes [cached] 1 asset
+assets by path *.js 1.48 MiB
+  asset bundle.js 1.47 MiB [emitted] (name: main)
+  asset main.a64217caf520d34516dc.hot-update.js 6.72 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.a64217caf520d34516dc.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.47 MiB main.a64217caf520d34516dc.hot-update.js 6.72 KiB
+cached modules 1.32 MiB [cached] 52 modules
+runtime modules 27.5 KiB 14 modules
+./src/tmdbApi.js 4.96 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 56 ms

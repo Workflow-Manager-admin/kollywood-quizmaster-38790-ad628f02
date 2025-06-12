@@ -27,11 +27,35 @@ async function tmdbGet(endpoint, params = {}) {
     }
   });
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`TMDB API error: ${res.status} ${res.statusText}`);
+  // Use timeout to prevent fetch from hanging forever (10s timeout)
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 10000);
+  
+  try {
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    clearTimeout(id);
+
+    if (!res.ok) {
+      // Try to include TMDB error body if present
+      let tmdbErrorMessage = "";
+      try {
+        const errBody = await res.json();
+        if (errBody && errBody.status_message) {
+          tmdbErrorMessage = `: ${errBody.status_message}`;
+        }
+      } catch {}
+      throw new Error(`TMDB API error: ${res.status} ${res.statusText} ${tmdbErrorMessage}`);
+    }
+    return res.json();
+  } catch (error) {
+    clearTimeout(id);
+    // Propagate Abort or other fetch errors upward
+    throw new Error(
+      error?.name === "AbortError"
+        ? "TMDB API request timed out"
+        : error?.message || "Unknown TMDB API error"
+    );
   }
-  return res.json();
 }
 
 // PUBLIC_INTERFACE
@@ -42,7 +66,18 @@ async function tmdbGet(endpoint, params = {}) {
  * @returns {Promise<object>} Search result object
  */
 export async function searchMovies(query, options = {}) {
-  return tmdbGet("/search/movie", { query, ...options });
+  // TMDB will return popular movies even with empty query if no query param provided,
+  // so always pass a query (even if empty string) to avoid error.
+  try {
+    // TMDB expects either query or "with_original_language", so merge them cleanly
+    const params = query
+      ? { query, ...options }
+      : { ...options, query: "" };
+    return await tmdbGet("/search/movie", params);
+  } catch (e) {
+    // Standardize broken/malformed results
+    return { results: [] };
+  }
 }
 
 // PUBLIC_INTERFACE
@@ -53,7 +88,11 @@ export async function searchMovies(query, options = {}) {
  * @returns {Promise<object>} Movie details object
  */
 export async function getMovieDetails(movieId, options = {}) {
-  return tmdbGet(`/movie/${movieId}`, { ...options });
+  try {
+    return await tmdbGet(`/movie/${movieId}`, { ...options });
+  } catch (e) {
+    return {};
+  }
 }
 
 // PUBLIC_INTERFACE
@@ -64,7 +103,11 @@ export async function getMovieDetails(movieId, options = {}) {
  * @returns {Promise<object>} Images object (with posters and backdrops arrays)
  */
 export async function getMovieImages(movieId, options = {}) {
-  return tmdbGet(`/movie/${movieId}/images`, { ...options });
+  try {
+    return await tmdbGet(`/movie/${movieId}/images`, { ...options });
+  } catch (e) {
+    return { posters: [], backdrops: [] };
+  }
 }
 
 // PUBLIC_INTERFACE
@@ -86,7 +129,11 @@ export function getPosterUrl(filePath, size = "w500") {
  * @returns {Promise<object>} Credits object (with cast and crew arrays)
  */
 export async function getMovieCredits(movieId) {
-  return tmdbGet(`/movie/${movieId}/credits`);
+  try {
+    return await tmdbGet(`/movie/${movieId}/credits`);
+  } catch (e) {
+    return { cast: [], crew: [] };
+  }
 }
 
 /*
@@ -94,4 +141,3 @@ export async function getMovieCredits(movieId) {
 // Searched entire project for 'PUBLIC_URL' usage that is not 'process.env.PUBLIC_URL'.
 // None found. If any direct usage is added, update it as 'process.env.PUBLIC_URL'!
 */
-
