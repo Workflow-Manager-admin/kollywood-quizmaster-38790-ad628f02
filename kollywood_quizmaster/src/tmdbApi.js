@@ -89,5 +89,9 @@ export async function getMovieCredits(movieId) {
   return tmdbGet(`/movie/${movieId}/credits`);
 }
 
-// You can add more helpers as needed.
+/*
+// SEARCH AND FIX: PUBLIC_URL direct access checker
+// Searched entire project for 'PUBLIC_URL' usage that is not 'process.env.PUBLIC_URL'.
+// None found. If any direct usage is added, update it as 'process.env.PUBLIC_URL'!
+*/
 
