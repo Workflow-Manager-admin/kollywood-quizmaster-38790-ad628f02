@@ -27,13 +27,14 @@ async function tmdbGet(endpoint, params = {}) {
     }
   });
 
-  // DEBUG/DEV: Log the full TMDB URL & params if in dev mode
-  if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+  // Log every network request and response, errors included, regardless of environment
+  // so we can debug real API/network issues in frontend environments.
+  // (Remove in production for security, if needed)
+  try {
     // eslint-disable-next-line no-console
-    console.log("[TMDB] Request URL:", url.toString());
-    // Optionally, show params too
-  }
-  // Use timeout to prevent fetch from hanging forever (10s timeout)
+    console.log("[TMDB][REQUEST]", { url: url.toString() });
+  } catch (e) {}
+
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), 10000);
 
@@ -42,40 +43,43 @@ async function tmdbGet(endpoint, params = {}) {
     res = await fetch(url.toString(), { signal: controller.signal });
     clearTimeout(id);
 
+    // Always log status code and response
+    try {
+      // eslint-disable-next-line no-console
+      console.log("[TMDB][FETCH_STATUS]", res.status, res.statusText);
+    } catch (e) {}
+
     if (!res.ok) {
       // Try to include TMDB error body if present
       let tmdbErrorMessage = "";
       try {
-        const errBody = await res.json();
-        if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
-          console.log("[TMDB] Error response body:", errBody);
-        }
+        const errBody = await res.clone().json();
+        // eslint-disable-next-line no-console
+        console.log("[TMDB][ERROR_BODY]", errBody);
         if (errBody && errBody.status_message) {
           tmdbErrorMessage = `: ${errBody.status_message}`;
         }
       } catch (detailsErr) {
-        if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
-          // eslint-disable-next-line no-console
-          console.log("[TMDB] Failed to parse error body JSON");
-        }
+        // eslint-disable-next-line no-console
+        console.log("[TMDB][ERROR_PARSE]", detailsErr);
       }
       throw new Error(`TMDB API error: ${res.status} ${res.statusText} ${tmdbErrorMessage}`);
     }
 
-    const json = await res.json();
-    if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+    const json = await res.clone().json();
+    // Always log data, not just in dev
+    try {
       // eslint-disable-next-line no-console
-      console.log("[TMDB] Response for", endpoint, json);
-    }
+      console.log("[TMDB][RESPONSE]", endpoint, json);
+    } catch (e) {}
     return json;
   } catch (error) {
     clearTimeout(id);
-    // Propagate Abort or other fetch errors upward
-    if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+    // Always log fetch exceptions
+    try {
       // eslint-disable-next-line no-console
-      console.log("[TMDB] Fetch exception", error);
-    }
+      console.log("[TMDB][FETCH_EXCEPTION]", error);
+    } catch (e) {}
     throw new Error(
       error?.name === "AbortError"
         ? "TMDB API request timed out"
