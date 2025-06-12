@@ -33,24 +33,16 @@ function QuizGameContainer({ quizKey, username, onExitToDashboard }) {
     setSummary(null);
   };
 
-  // Select correct quiz component
-  let QuizComponent = null;
-  switch (quizKey) {
-    case "blurredPoster":
-      QuizComponent = BlurredPosterQuiz; break;
-    case "characterMatch":
-      QuizComponent = CharacterMovieMatch; break;
-    case "movieBingo":
-      QuizComponent = MovieBingo; break;
-    case "timelineChallenge":
-      QuizComponent = MovieTimelineChallenge; break;
-    case "spinTheWheel":
-      QuizComponent = SpinTheWheel; break;
-    case "castCombo":
-      QuizComponent = CastCombo; break;
-    default:
-      QuizComponent = null;
-  }
+  // Select correct quiz component in a way that's easily updated if new games are added.
+  const quizComponentMap = {
+    blurredPoster: BlurredPosterQuiz,
+    characterMatch: CharacterMovieMatch,
+    movieBingo: MovieBingo,
+    timelineChallenge: MovieTimelineChallenge,
+    spinTheWheel: SpinTheWheel,
+    castCombo: CastCombo
+  };
+  const QuizComponent = quizComponentMap[quizKey] || null;
 
   if (!QuizComponent) return (
     <div className="container" style={{ marginTop: 120 }}>

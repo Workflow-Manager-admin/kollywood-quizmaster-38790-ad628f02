@@ -1,7 +1,11 @@
 import React from "react";
 import "../App.css";
 
-// List of enabled game features
+/** 
+ * List of enabled quiz game features.
+ * If in the future you want to show/hide games dynamically based on a remote config/user, 
+ * pass in this array via props or context instead of being static.
+ */
 const quizzes = [
   {
     key: "blurredPoster",
