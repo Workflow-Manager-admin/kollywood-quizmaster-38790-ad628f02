@@ -35,51 +35,83 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
 
   // On mount, prepare 10 random Tamil (Kollywood) movies
   useEffect(() => {
+    let isMounted = true;
     async function prepareQuiz() {
       setLoading(true);
-      // Find popular tamil movies with poster
-      let result = await searchMovies("", {
-        with_original_language: "ta",
-        sort_by: "popularity.desc",
-        include_adult: false,
-        region: "IN",
-        page: Math.floor(Math.random() * 25) + 1
-      });
-      let tamilMovies = (result.results || []).filter(isKollywoodMovie).filter(m => !!m.poster_path);
+      try {
+        // Find popular tamil movies with poster
+        const result = await searchMovies("", {
+          with_original_language: "ta",
+          sort_by: "popularity.desc",
+          include_adult: false,
+          region: "IN",
+          page: Math.floor(Math.random() * 25) + 1
+        });
 
-      // get unique random samples
-      const shuffled = tamilMovies.sort(() => 0.5 - Math.random());
-      let selected = [];
-      let usedTitles = new Set();
-      for (const movie of shuffled) {
-        if (selected.length >= 10) break;
-        const title = movie.title || movie.original_title;
-        if (!usedTitles.has(title)) {
-          usedTitles.add(title);
-          selected.push(movie);
+        if (!result || !Array.isArray(result.results)) {
+          throw new Error("TMDB returned no results for Tamil movies.");
+        }
+        const tamilMovies = (result.results || []).filter(isKollywoodMovie).filter(m => !!m.poster_path);
+
+        // get unique random samples
+        const shuffled = [...tamilMovies].sort(() => 0.5 - Math.random());
+        const selected = [];
+        const usedTitles = new Set();
+        for (const movie of shuffled) {
+          if (selected.length >= 10) break;
+          const title = movie.title || movie.original_title;
+          if (!usedTitles.has(title)) {
+            usedTitles.add(title);
+            selected.push(movie);
+          }
+        }
+
+        if (selected.length === 0) {
+          throw new Error("No Tamil movies with posters found, try again later.");
+        }
+
+        // For each, retrieve details (year/genre etc)
+        const questionsPromises = selected.map(async m => {
+          try {
+            const details = await getMovieDetails(m.id);
+            // get poster path, possibly blur
+            const images = await getMovieImages(m.id);
+            const posterPath = (images?.posters?.[0]?.file_path) || m.poster_path;
+            return {
+              id: m.id,
+              title: m.title,
+              year: details.release_date?.slice(0, 4) || "Unknown",
+              genres: details.genres?.map(g => g.name) || [],
+              posterPath,
+            };
+          } catch (qErr) {
+            // Return fallback if per-movie fetch fails
+            return {
+              id: m.id,
+              title: m.title,
+              year: m.release_date?.slice(0, 4) || "Unknown",
+              genres: [],
+              posterPath: m.poster_path,
+              fetchError: true
+            };
+          }
+        });
+        const questionsList = await Promise.all(questionsPromises);
+
+        if (isMounted) {
+          setQuestions(questionsList);
+          setUsedClues(Array(questionsList.length).fill({ year: false, genre: false }));
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setQuestions([]);
+          setLoading(false);
         }
       }
-
-      // For each, retrieve details (year/genre etc)
-      const questionsPromises = selected.map(async m => {
-        const details = await getMovieDetails(m.id);
-        // get poster path, possibly blur
-        const images = await getMovieImages(m.id);
-        const posterPath = (images?.posters?.[0]?.file_path) || m.poster_path;
-        return {
-          id: m.id,
-          title: m.title,
-          year: details.release_date?.slice(0, 4) || "Unknown",
-          genres: details.genres?.map(g => g.name) || [],
-          posterPath,
-        };
-      });
-      const questionsList = await Promise.all(questionsPromises);
-      setQuestions(questionsList);
-      setUsedClues(Array(questionsList.length).fill({ year: false, genre: false }));
-      setLoading(false);
     }
     prepareQuiz();
+    return () => { isMounted = false; };
     // eslint-disable-next-line
   }, []);
 
@@ -124,10 +156,20 @@ function BlurredPosterQuiz({ username, onComplete, onExit }) {
     });
   };
 
-  if (loading || !questions.length) {
+  if (loading) {
     return (
       <div className="container" style={{ marginTop: 140 }}>
         <div>Loading Kollywood movie posters...</div>
+      </div>
+    );
+  }
+  if (!questions.length) {
+    return (
+      <div className="container" style={{ marginTop: 140 }}>
+        <div style={{ color: "#db076c", fontWeight: 600, marginBottom: "1.3rem" }}>
+          Failed to load Kollywood movie posters. Please try again later.
+        </div>
+        <button className="btn" onClick={onExit}>Back to Dashboard</button>
       </div>
     );
   }
