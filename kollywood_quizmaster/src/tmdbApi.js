@@ -27,12 +27,19 @@ async function tmdbGet(endpoint, params = {}) {
     }
   });
 
+  // DEBUG/DEV: Log the full TMDB URL & params if in dev mode
+  if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+    // eslint-disable-next-line no-console
+    console.log("[TMDB] Request URL:", url.toString());
+    // Optionally, show params too
+  }
   // Use timeout to prevent fetch from hanging forever (10s timeout)
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), 10000);
-  
+
+  let res;
   try {
-    const res = await fetch(url.toString(), { signal: controller.signal });
+    res = await fetch(url.toString(), { signal: controller.signal });
     clearTimeout(id);
 
     if (!res.ok) {
@@ -40,16 +47,35 @@ async function tmdbGet(endpoint, params = {}) {
       let tmdbErrorMessage = "";
       try {
         const errBody = await res.json();
+        if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.log("[TMDB] Error response body:", errBody);
+        }
         if (errBody && errBody.status_message) {
           tmdbErrorMessage = `: ${errBody.status_message}`;
         }
-      } catch {}
+      } catch (detailsErr) {
+        if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.log("[TMDB] Failed to parse error body JSON");
+        }
+      }
       throw new Error(`TMDB API error: ${res.status} ${res.statusText} ${tmdbErrorMessage}`);
     }
-    return res.json();
+
+    const json = await res.json();
+    if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.log("[TMDB] Response for", endpoint, json);
+    }
+    return json;
   } catch (error) {
     clearTimeout(id);
     // Propagate Abort or other fetch errors upward
+    if (typeof process !== "undefined" && process.env && process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.log("[TMDB] Fetch exception", error);
+    }
     throw new Error(
       error?.name === "AbortError"
         ? "TMDB API request timed out"

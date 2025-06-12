@@ -83,3 +83,13 @@ cached modules 1.32 MiB [cached] 52 modules
 runtime modules 27.5 KiB 14 modules
 ./src/tmdbApi.js 4.96 KiB [built] [code generated]
 webpack 5.99.9 compiled successfully in 56 ms
+assets by status 629 bytes [cached] 1 asset
+assets by path *.js 1.48 MiB
+  asset bundle.js 1.48 MiB [emitted] (name: main)
+  asset main.003b8fb68ad56b10de2e.hot-update.js 7.93 KiB [emitted] [immutable] [hmr] (name: main)
+asset main.003b8fb68ad56b10de2e.hot-update.json 28 bytes [emitted] [immutable] [hmr]
+Entrypoint main 1.48 MiB = bundle.js 1.48 MiB main.003b8fb68ad56b10de2e.hot-update.js 7.93 KiB
+cached modules 1.32 MiB [cached] 52 modules
+runtime modules 27.5 KiB 14 modules
+./src/tmdbApi.js 6.14 KiB [built] [code generated]
+webpack 5.99.9 compiled successfully in 54 ms
